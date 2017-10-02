@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, ScopedTypeVariables,GADTs, KindSignatures, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, TypeFamilies, ViewPatterns, DataKinds, ConstraintKinds, UndecidableInstances,FunctionalDependencies,RankNTypes, InstanceSigs, PolyKinds, TypeApplications #-}
+{-# LANGUAGE TypeOperators, ScopedTypeVariables, GADTs, KindSignatures, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, TypeFamilies, ViewPatterns, DataKinds, ConstraintKinds, UndecidableInstances, RankNTypes, InstanceSigs, PolyKinds, TypeApplications #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.OpenRecords
