@@ -48,10 +48,12 @@ module Data.OpenRecords
              -- ** Disjoint union
               (.+) , (:+),
              -- * Row constraints
-             (:\), Disjoint, Labels(..), Forall(..),
+             (:\), Disjoint, Labels, Forall(..),
              -- * Row only operations
              -- * Syntactic sugar
-             RecOp(..), RowOp(..), (.|), (:|)
+             RecOp(..), RowOp(..), (.|), (:|),
+             -- * Labels
+             labels
 
 
 
@@ -59,6 +61,7 @@ module Data.OpenRecords
      ) 
 where
 
+import Data.Functor.Const
 import Data.Hashable
 import Data.HashMap.Lazy(HashMap)
 import Data.Sequence(Seq,viewl,ViewL(..),(><),(<|))
@@ -71,6 +74,7 @@ import GHC.TypeLits
 import GHC.Exts -- needed for constraints kinds
 import Data.Proxy
 import Data.Type.Equality (type (==))
+import Unconstrained
 
 
 -- | A label 
@@ -231,10 +235,6 @@ instance (KnownSymbol l, Restrict ls) => Restrict (l ': ls) where
 {--------------------------------------------------------------------
   Syntactic sugar for record operations
 --------------------------------------------------------------------}
--- | A constraint not constraining anything
-class NoConstr a 
-instance NoConstr a
-
 -- | Alias for ':\'. It is a class rather than an alias, so that
 --   it can be partially appliced.
 class (r :\ l) => Lacks (l :: Symbol) (r :: Row *)
@@ -279,9 +279,9 @@ infix 5 :<-
 --  [@:<-!@] Record label renaming. Sugar for 'renameUnique'.
 data RecOp (c :: Row * -> Constraint) (rowOp :: RowOp *) where
   (:<-)  :: KnownSymbol l           => Label l -> a      -> RecOp (HasType l a) RUp
-  (:=)   :: KnownSymbol l           => Label l -> a      -> RecOp NoConstr (l ::= a)  
+  (:=)   :: KnownSymbol l           => Label l -> a      -> RecOp Unconstrained1 (l ::= a)  
   (:!=)  :: KnownSymbol l => Label l -> a      -> RecOp (Lacks l) (l ::= a)  
-  (:<-|) :: (KnownSymbol l, KnownSymbol l') => Label l' -> Label l -> RecOp NoConstr (l' ::<-| l)
+  (:<-|) :: (KnownSymbol l, KnownSymbol l') => Label l' -> Label l -> RecOp Unconstrained1 (l' ::<-| l)
   (:<-!) :: (KnownSymbol l, KnownSymbol l', r :\ l') => Label l' -> Label l -> RecOp (Lacks l') (l' ::<-| l)
 
 
@@ -345,14 +345,9 @@ type family (x :: RowOp *) :| (r :: Row *)  :: Row * where
 
 
 
-class Labels (r :: Row *) where
-  labels :: Rec r -> [String]
-
-instance Labels (R '[]) where
-  labels _ = []
-
-instance (KnownSymbol l , Labels (R t)) => Labels (R (l :-> v ': t)) where
-  labels r = show l : labels (r .- l) where l = Label :: Label l
+type family Labels (r :: Row a) where
+  Labels (R '[]) = '[]
+  Labels (R (l :-> a ': xs)) = l ': Labels (R xs)
 
 
 -- | If the constaint @c@ holds for all elements in the row @r@,
@@ -375,6 +370,9 @@ class Forall (r :: Row *) (c :: * -> Constraint) where
   -- apply the function to each pair of values that can be obtained by indexing the two records
   -- with the same label and collect the result in a list.
   eraseZip :: Proxy c -> (forall a. c a => a -> a -> b) -> Rec r -> Rec r -> [b]
+
+labels :: forall r s . (Forall r Unconstrained1, IsString s) => Proxy r -> [s]
+labels _ = getConst $ rinitAWithLabel @r (Proxy @Unconstrained1) (Const . pure . show')
 
 class RowMap (f :: * -> *) (r :: Row *) where
   type Map f r :: Row *
@@ -473,7 +471,7 @@ instance (KnownSymbol l, RZipt t1 t2) =>
 
 -- some standard type classes
 
-instance (Labels r, Forall r Show) => Show (Rec r) where
+instance (Forall r Show) => Show (Rec r) where
   show r = "{ " ++ intercalate ", " binds ++ " }"
     where binds = (\ (x, y) -> x ++ "=" ++ y) <$> eraseWithLabels (Proxy @Show) show r
 
