@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, ScopedTypeVariables,GADTs, KindSignatures, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, TypeFamilies, ViewPatterns, DataKinds, ConstraintKinds, UndecidableInstances,FunctionalDependencies,RankNTypes,AllowAmbiguousTypes, InstanceSigs, PolyKinds, TypeApplications #-}
+{-# LANGUAGE TypeOperators, ScopedTypeVariables, GADTs, KindSignatures, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, TypeFamilies, ViewPatterns, DataKinds, ConstraintKinds, UndecidableInstances, RankNTypes, InstanceSigs, PolyKinds, TypeApplications #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.OpenRecords
@@ -173,7 +173,7 @@ type family Rename (l :: Symbol) (l' :: Symbol) (r :: Row *) :: Row * where
 infix  8 .-
 -- | Record selection
 (.!) :: KnownSymbol l => Rec r -> Label l -> r :! l
-(OR m) .! (show -> a) = x'
+OR m .! (show -> a) = x'
    where x S.:< t =  S.viewl $ m M.! a 
          -- notice that this is safe because of the external type
          x' = case x of HideType p -> unsafeCoerce p 
@@ -183,11 +183,11 @@ infix  8 .-
 infixl 6 :!
 -- | Type level operation of '.!'
 type family (r :: Row *) :! (t :: Symbol) :: * where
-  (R r) :! l = Get l r
+  R r :! l = Get l r
 
 -- | Record restriction. Delete the label l from the record.
 (.-) :: KnownSymbol l =>  Rec r -> Label l -> Rec (r :- l)
-(OR m) .- (show -> a) = OR m'
+OR m .- (show -> a) = OR m'
    where x S.:< t =  S.viewl $ m M.! a 
          m' = case S.viewl t of
                EmptyL -> M.delete a m
@@ -195,25 +195,25 @@ type family (r :: Row *) :! (t :: Symbol) :: * where
 
 -- | Type level operation of '.-'
 type family (r :: Row *) :- (s :: Symbol)  :: Row * where
-  (R r) :- l = R (Remove l r)
+  R r :- l = R (Remove l r)
 
 
 
 -- | Record union (not commutative)
 (.++) :: Rec l -> Rec r -> Rec (l :++ r)
-(OR l) .++ (OR r) = OR $ M.unionWith (><) l r
+OR l .++ OR r = OR $ M.unionWith (><) l r
 
 -- | Type level operation of '.++'
 type family (l :: Row *) :++  (r :: Row *)  :: Row * where
-  (R l) :++ (R r) = R (Merge l r)
+  R l :++ R r = R (Merge l r)
 
 -- | Record disjoint union (commutative)
 (.+) :: Disjoint l r => Rec l -> Rec r -> Rec (l :+ r)
-(OR l) .+ (OR r) = OR $ M.unionWith (error "Impossible") l r
+OR l .+ OR r = OR $ M.unionWith (error "Impossible") l r
 
 -- | Type level operation of '.+'
 type family (l :: Row *) :+  (r :: Row *)  :: Row * where
-  (R l) :+ (R r) = R (Merge l r)
+  R l :+ R r = R (Merge l r)
 
 {--------------------------------------------------------------------
   Syntactic sugar for record operations
@@ -429,7 +429,7 @@ instance (KnownSymbol l, Forall (R t) c, c a) => Forall (R (l :-> a ': t)) c whe
   eraseToHashMap c f r =
     M.insert (show' l) (f (r .! l)) $ eraseToHashMap c f (r .- l) where l = Label :: Label l
 
-  eraseZip c f x y = (f (x .! l) (y .! l)) : eraseZip c f (x .- l) (y .- l) where
+  eraseZip c f x y = f (x .! l) (y .! l) : eraseZip c f (x .- l) (y .- l) where
     l = Label :: Label l
 
 show' :: (IsString s, Show a) => a -> s
